@@ -392,16 +392,17 @@ document.getElementById('targetLineField').addEventListener('input', function() 
   calculateAll();
 });
 
+	  function saveToIndexedDB() {
+  const tableBody = document.getElementById('tableBody');
+  const data = Array.from(tableBody.rows).map(row => ({
+    className: row.className,
+    cells: Array.from(row.cells).map(cell => cell.innerText)
+  }));
+  localStorage.setItem('excelTableData', JSON.stringify(data));
 
-    function saveToIndexedDB() {
-      const tableBody = document.getElementById('tableBody');
-      const data = Array.from(tableBody.rows).map(row => ({
-        className: row.className,
-        cells: Array.from(row.cells).map(cell => cell.innerText)
-      }));
-      localStorage.setItem('excelTableData', JSON.stringify(data));
-    }
-
+  // Show notification
+  showNotification("✅ Data saved successfully!");
+}
     function loadFromIndexedDB() {
       const data = JSON.parse(localStorage.getItem('excelTableData') || '[]');
       const tableBody = document.getElementById('tableBody');
