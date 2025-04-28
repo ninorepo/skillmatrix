@@ -106,6 +106,7 @@
     <form id="exportForm">
       <label>Date: <input type="date" name="Date" required></label><br><br>
       <label>Line: <input type="text" name="Line" required></label><br><br>
+      <label>CMT: <input type="text" name="CMT"></label><br><br>
       <label>Foreman: <input type="text" name="Foreman" required></label><br><br>
       <label>Smv: <input type="text" name="Smv"></label><br><br>
       <label>MP: <input type="text" name="MP"></label><br><br>
@@ -646,17 +647,19 @@ function exportToExcel(exportInfo = {}) {
   const rawSheet = XLSX.utils.table_to_sheet(table, { raw: true });
 
   // Insert form data
-  const ws_data = [
-    ['Date:', exportInfo.Date || ''],
-    ['Line:', exportInfo.Line || ''],
-    ['Foreman:', exportInfo.Foreman || ''],
-    ['Target:', ''], // Target left empty (user will fill inside table)
-    ['Smv:', exportInfo.Smv || ''],
-    ['MP:', exportInfo.MP || ''],
-    ['Inspection:', exportInfo.Inspection || ''],
-    ['CPI:', exportInfo.CPI || ''],
-    [], // empty row before table
-  ];
+const ws_data = [
+  ['Date:', exportInfo.Date || ''],
+  ['Line:', exportInfo.Line || ''],
+  ['Foreman:', exportInfo.Foreman || ''],
+  ['Target:', exportInfo.TargetLine || ''], // Now use TargetLine from form
+  ['Smv:', exportInfo.Smv || ''],
+  ['MP:', exportInfo.MP || ''],
+  ['Inspection:', exportInfo.Inspection || ''],
+  ['CPI:', exportInfo.CPI || ''],
+  ['CMT:', exportInfo.CMT || ''], // Added CMT here
+  [], // empty row before table
+];
+
 
   // Push table
   const tableData = XLSX.utils.sheet_to_json(rawSheet, { header: 1, blankrows: false });
@@ -671,19 +674,20 @@ function exportToExcel(exportInfo = {}) {
     { wpx: 70 }, { wpx: 100 }, { wpx: 90 }, { wpx: 100 }, { wpx: 80 }, { wpx: 60 }
   ];
 
-  // Merged headers (shifted +9 rows)
-  ws['!merges'] = [
-    { s: { r:9, c:0 }, e: { r:10, c:0 } }, 
-    { s: { r:9, c:1 }, e: { r:10, c:1 } }, 
-    { s: { r:9, c:2 }, e: { r:10, c:2 } }, 
-    { s: { r:9, c:3 }, e: { r:10, c:3 } }, 
-    { s: { r:9, c:4 }, e: { r:10, c:4 } }, 
-    { s: { r:9, c:5 }, e: { r:10, c:5 } }, 
-    { s: { r:9, c:6 }, e: { r:10, c:6 } }, 
-    { s: { r:9, c:7 }, e: { r:10, c:7 } }, 
-    { s: { r:9, c:8 }, e: { r:9, c:17 } }, 
-    { s: { r:9, c:18 }, e: { r:9, c:23 } },
-  ];
+// Merged headers (shifted +10 rows)
+ws['!merges'] = [
+  { s: { r:10, c:0 }, e: { r:11, c:0 } }, 
+  { s: { r:10, c:1 }, e: { r:11, c:1 } }, 
+  { s: { r:10, c:2 }, e: { r:11, c:2 } }, 
+  { s: { r:10, c:3 }, e: { r:11, c:3 } }, 
+  { s: { r:10, c:4 }, e: { r:11, c:4 } }, 
+  { s: { r:10, c:5 }, e: { r:11, c:5 } }, 
+  { s: { r:10, c:6 }, e: { r:11, c:6 } }, 
+  { s: { r:10, c:7 }, e: { r:11, c:7 } }, 
+  { s: { r:10, c:8 }, e: { r:10, c:17 } }, 
+  { s: { r:10, c:18 }, e: { r:10, c:23 } },
+];
+
 
   XLSX.utils.book_append_sheet(wb, ws, 'CAPACITY');
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
