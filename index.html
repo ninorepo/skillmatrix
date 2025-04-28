@@ -760,6 +760,31 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
   exportToExcel(exportInfo); // pass info to export
 });
 
+	  function showNotification(message) {
+  const notif = document.createElement('div');
+  notif.innerText = message;
+  Object.assign(notif.style, {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#28a745',
+    color: 'white',
+    padding: '10px 20px',
+    borderRadius: '8px',
+    fontSize: '16px',
+    zIndex: '10000',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+    opacity: '0',
+    transition: 'opacity 0.3s ease'
+  });
+  document.body.appendChild(notif);
+
+  setTimeout(() => { notif.style.opacity = '1'; }, 10);
+  setTimeout(() => { notif.style.opacity = '0'; }, 2000);
+  setTimeout(() => { notif.remove(); }, 2500);
+}
+
 
   </script>
 </body>
