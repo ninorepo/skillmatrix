@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel-like Table</title>
+  <style>
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f0f0f0;
+    }
+    td[contenteditable] {
+      background-color: #fff8dc;
+    }
+    td.summary-cell, td.grand-total-cell {
+      background-color: #dff0d8;
+      font-weight: bold;
+    }
+    tr.summary-row, tr.grand-total-row {
+      border-top: 2px solid #000;
+    }
+    .controls {
+      margin: 16px;
+    }
+    button {
+      padding: 6px 12px;
+      margin-right: 8px;
+      font-size: 14px;
+    }
+    tr.selected {
+      outline: 2px solid #007bff;
+    }
+    .sortable-ghost {
+      opacity: 0.6;
+      background-color: #cce5ff !important;
+    }
+    
+	.dragging-group {
+  	background-color: #ffe6b3 !important;
+  	transition: background-color 0.2s ease;
+  	}
+
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body>
+  <div class="controls">
+    <button onclick="addRow()">Add Row</button>
+    <button onclick="deleteLastRow()">Delete Last Row</button>
+    <button onclick="deleteSelectedRow()">Delete Selected Row</button>
+    <button onclick="saveToIndexedDB()">Save Data</button>
+    <button onclick="loadFromIndexedDB()">Load Data</button>
+    <button onclick="addSummaryRowBelow()">Add Summary Row</button>
+    <button onclick="addGrandTotalRow()">Add Grand Total Row</button>
+<button onclick="openPopup()">Export to Excel</button>
+    <button onclick="exportToSkillMatrix()">Export to Skill Matrix</button>
+    <button onclick="exportLog()">Export Log</button>
+  </div>
+<label>Target Line: 
+  <input type="text" id="targetLineField" placeholder="Enter Target Line" style="margin-left:8px; padding:4px;">
+</label>
+  <div style="overflow-x: auto; padding: 16px;">
+    <table id="excelTable">
+      <thead>
+        <tr>
+          <th rowspan="2">ID</th>
+          <th rowspan="2">NAME</th>
+          <th rowspan="2">OPERATION</th>
+          <th rowspan="2">TARGET (Engg' Sheet)</th>
+          <th rowspan="2">SMV</th>
+          <th rowspan="2">Budget Operator</th>
+          <th rowspan="2">Actual Man Power</th>
+          <th rowspan="2">Machine Code</th>
+          <th colspan="10">CAPACITY CHECK</th>
+          <th colspan="6">CYCLE TIME</th>
+        </tr>
+        <tr>
+          <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th>
+          <th>Minutes</th>
+          <th>Minutes + Allowance</th>
+          <th>Performance</th>
+          <th>Potential Output</th>
+          <th>Propose MP</th>
+          <th>Diff</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  
+  <!-- Popup Form Modal -->
+<div id="popupForm" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+  <div style="background:white; padding:20px; border-radius:8px; min-width:300px;">
+    <h3>Export Information</h3>
+    <form id="exportForm">
+      <label>Date: <input type="date" name="Date" required></label><br><br>
+      <label>Line: <input type="text" name="Line" required></label><br><br>
+      <label>Foreman: <input type="text" name="Foreman" required></label><br><br>
+      <label>Smv: <input type="text" name="Smv"></label><br><br>
+      <label>MP: <input type="text" name="MP"></label><br><br>
+      <label>Inspection: <input type="text" name="Inspection"></label><br><br>
+      <label>CPI: <input type="text" name="CPI"></label><br><br>
+      <label>Target Line: <input type="text" name="TargetLine" id="targetLineInput" readonly></label><br><br>
+      <button type="submit">Export</button>
+      <button type="button" onclick="closePopup()">Cancel</button>
+    </form>
+  </div>
+</div>
+
+  <script>
+    const numColumns = 24;
+    const actionLog = [];
+    function logAction(action) {
+      actionLog.push(`${new Date().toISOString()} ${action}`);
+    }
+
+    const summaryEnabledColumns = Array(numColumns).fill(false);
+    [4, 5, 6, 19, 20, 22, 23].forEach(i => summaryEnabledColumns[i] = true);
+
+    function addRow(index = null) {
+      logAction(`ADD_ROW ${index !== null ? index : 'end'}`);
+      const tableBody = document.getElementById('tableBody');
+      const newRow = document.createElement('tr');
+      for (let i = 0; i < numColumns; i++) {
+        const cell = document.createElement('td');
+        if (i === 18) cell.classList.add('minutes');
+        else if (i === 19) cell.classList.add('minutes-allowance');
+        else if (i === 20) cell.classList.add('performance');
+        else if (i === 21) cell.classList.add('potential-output');
+        else cell.contentEditable = true;
+        newRow.appendChild(cell);
+      }
+      if (index !== null && index >= 0 && index <= tableBody.rows.length) {
+        tableBody.insertBefore(newRow, tableBody.rows[index]);
+      } else {
+        tableBody.appendChild(newRow);
+      }
+      calculateAll();
+    }
+
+    function deleteLastRow() {
+      logAction(`DELETE_ROW last`);
+      const tableBody = document.getElementById('tableBody');
+      const rows = tableBody.querySelectorAll('tr');
+      if (rows.length > 0) tableBody.removeChild(rows[rows.length - 1]);
+      calculateAll();
+    }
+
+    function deleteSelectedRow() {
+      const selectedRow = document.querySelector('#tableBody .selected');
+      if (selectedRow) {
+        const index = [...tableBody.rows].indexOf(selectedRow);
+        logAction(`DELETE_ROW ${index}`);
+        selectedRow.remove();
+        calculateAll();
+      } else {
+        alert('Please select a row first.');
+      }
+    }
+
+    function addSummaryRowBelow() {
+      const tableBody = document.getElementById('tableBody');
+      const selectedRow = [...tableBody.rows].find(row => row.classList.contains('selected'));
+      const index = selectedRow ? [...tableBody.rows].indexOf(selectedRow) + 1 : tableBody.rows.length;
+      const summaryRow = document.createElement('tr');
+      summaryRow.className = 'summary-row';
+      for (let i = 0; i < numColumns; i++) {
+        const td = document.createElement('td');
+        td.className = 'summary-cell';
+        if (i === 0) {
+          td.contentEditable = true;
+          td.innerText = 'Summary';
+        }
+        summaryRow.appendChild(td);
+      }
+      logAction(`ADD_SUMMARY_ROW ${index}`);
+      tableBody.insertBefore(summaryRow, tableBody.rows[index] || null);
+      updateSummary();
+    }
+
+    function addGrandTotalRow() {
+      const tableBody = document.getElementById('tableBody');
+      const existing = tableBody.querySelector('.grand-total-row');
+      if (existing) existing.remove();
+      const grandTotalRow = document.createElement('tr');
+      grandTotalRow.className = 'grand-total-row';
+      for (let i = 0; i < numColumns; i++) {
+        const td = document.createElement('td');
+        td.className = 'grand-total-cell';
+        if (i === 0) {
+          td.contentEditable = true;
+          td.innerText = 'Grand Total';
+        }
+        grandTotalRow.appendChild(td);
+      }
+      logAction(`ADD_GRAND_TOTAL_ROW`);
+      tableBody.appendChild(grandTotalRow);
+      updateGrandTotal();
+    }
+
+    function updateSummary() {
+      const rows = Array.from(document.querySelectorAll('#tableBody tr'));
+      const summaryIndices = rows.reduce((acc, row, idx) => {
+        if (row.classList.contains('summary-row')) acc.push(idx);
+        return acc;
+      }, []);
+      summaryIndices.forEach((summaryIdx, i) => {
+        const summaryRow = rows[summaryIdx];
+        const startIdx = (i === 0) ? 0 : summaryIndices[i - 1] + 1;
+        const endIdx = summaryIdx;
+        const rowsToSum = rows.slice(startIdx, endIdx).filter(r => !r.classList.contains('summary-row') && !r.classList.contains('grand-total-row'));
+        for (let col = 0; col < numColumns; col++) {
+          const cell = summaryRow.cells[col];
+          if (!summaryEnabledColumns[col]) {
+            if (col !== 0) cell.innerText = '—';
+            continue;
+          }
+          let sum = 0;
+          let hasValue = false;
+          rowsToSum.forEach(r => {
+            const val = parseFloat(r.cells[col]?.innerText);
+            if (!isNaN(val)) {
+              sum += val;
+              hasValue = true;
+            }
+          });
+          cell.innerText = hasValue ? sum.toFixed(2) : '';
+        }
+      });
+      updateGrandTotal();
+    }
+
+    function updateGrandTotal() {
+      const summaryRows = Array.from(document.querySelectorAll('#tableBody .summary-row'));
+      const grandTotalRow = document.querySelector('#tableBody .grand-total-row');
+      if (!grandTotalRow) return;
+      for (let col = 0; col < numColumns; col++) {
+        const cell = grandTotalRow.cells[col];
+        if (!summaryEnabledColumns[col]) {
+          if (col !== 0) cell.innerText = '—';
+          continue;
+        }
+        let sum = 0;
+        let hasValue = false;
+        summaryRows.forEach(row => {
+          const val = parseFloat(row.cells[col]?.innerText);
+          if (!isNaN(val)) {
+            sum += val;
+            hasValue = true;
+          }
+        });
+        cell.innerText = hasValue ? sum.toFixed(2) : '';
+      }
+    }
+
+function calculateAll() {
+  const tableBody = document.getElementById('tableBody');
+  const rows = Array.from(tableBody.rows).filter(row => 
+    !row.classList.contains('summary-row') && 
+    !row.classList.contains('grand-total-row')
+  );
+
+  const targetLineValue = parseFloat(document.getElementById('targetLineField')?.value);
+
+  rows.forEach(row => {
+    const minuteCells = Array.from(row.cells).slice(8, 18).map(c => parseFloat(c.innerText)).filter(n => !isNaN(n));
+    const minutes = minuteCells.length ? (minuteCells.reduce((a, b) => a + b) / minuteCells.length) / 60 : 0;
+    const minutesCell = row.querySelector('.minutes');
+    if (minutesCell) minutesCell.innerText = minutes.toFixed(2);
+
+    const minutesAllowanceCell = row.querySelector('.minutes-allowance');
+    const minutesAllowance = minutes * 1.2;
+    if (minutesAllowanceCell) minutesAllowanceCell.innerText = minutes ? minutesAllowance.toFixed(2) : '';
+
+    const smv = parseFloat(row.cells[4]?.innerText);
+    const performanceCell = row.querySelector('.performance');
+    const performance = (minutesAllowance && smv) ? (smv / minutesAllowance) * 100 : 0;
+    if (performanceCell) performanceCell.innerText = (minutesAllowance && smv) ? performance.toFixed(2) + '%' : '';
+
+    const actualMP = parseFloat(row.cells[6]?.innerText);
+    const potentialOutputCell = row.querySelector('.potential-output');
+    const potentialOutput = (minutesAllowance && actualMP) ? (60 / minutesAllowance) * actualMP : 0;
+    if (potentialOutputCell) potentialOutputCell.innerText = (minutesAllowance && actualMP) ? potentialOutput.toFixed(2) : '';
+  });
+
+  calculateProposeMPAndDiff(); // Add this new function call
+  updateSummary();
+}
+
+function calculateProposeMPAndDiff() {
+  const tableBody = document.getElementById('tableBody');
+  const rows = Array.from(tableBody.rows).filter(row => 
+    !row.classList.contains('summary-row') && 
+    !row.classList.contains('grand-total-row')
+  );
+
+  const targetLineValue = parseFloat(document.getElementById('targetLineField')?.value);
+
+  let i = 0;
+  while (i < rows.length) {
+    const currentRow = rows[i];
+    const currentOperation = currentRow.cells[2]?.innerText.trim(); // Group by OPERATION
+    const group = [currentRow];
+
+    // Find consecutive rows with the same OPERATION
+    for (let j = i + 1; j < rows.length; j++) {
+      const nextRow = rows[j];
+      const nextOperation = nextRow.cells[2]?.innerText.trim();
+      if (currentOperation && nextOperation === currentOperation) {
+        group.push(nextRow);
+      } else {
+        break;
+      }
+    }
+
+    const proposeMPCell = currentRow.cells[22];
+    const diffCell = currentRow.cells[23];
+
+    if (group.length === 1) {
+      // Single (non-grouped) row
+      const potentialOutput = parseFloat(currentRow.cells[21]?.innerText);
+      const actualMP = parseFloat(currentRow.cells[6]?.innerText);
+
+      if (!isNaN(targetLineValue) && !isNaN(potentialOutput) && potentialOutput !== 0) {
+        const proposeMP = targetLineValue / potentialOutput;
+        proposeMPCell.innerText = proposeMP.toFixed(2);
+
+        if (!isNaN(actualMP)) {
+          const diff = actualMP - proposeMP;
+          diffCell.innerText = diff.toFixed(2);
+        } else {
+          diffCell.innerText = '';
+        }
+      } else {
+        proposeMPCell.innerText = '';
+        diffCell.innerText = '';
+      }
+
+    } else {
+      // Grouped rows (same OPERATION)
+      let sumPotentialOutput = 0;
+      let sumActualMP = 0;
+
+      group.forEach(member => {
+        const potentialOutput = parseFloat(member.cells[21]?.innerText);
+        if (!isNaN(potentialOutput)) {
+          sumPotentialOutput += potentialOutput;
+        }
+
+        const actualMP = parseFloat(member.cells[6]?.innerText);
+        if (!isNaN(actualMP)) {
+          sumActualMP += actualMP;
+        }
+      });
+
+      if (sumPotentialOutput > 0 && !isNaN(targetLineValue)) {
+        const proposeMP = targetLineValue / sumPotentialOutput;
+
+        proposeMPCell.innerText = proposeMP.toFixed(2);
+        diffCell.innerText = (sumActualMP - proposeMP).toFixed(2);
+      } else {
+        proposeMPCell.innerText = '';
+        diffCell.innerText = '';
+      }
+
+      // Clear Propose MP and Diff for other group members
+      for (let k = 1; k < group.length; k++) {
+        group[k].cells[22].innerText = '';
+        group[k].cells[23].innerText = '';
+      }
+    }
+
+    i += group.length;
+  }
+}
+
+
+
+
+document.getElementById('targetLineField').addEventListener('input', function() {
+  calculateAll();
+});
+
+
+    function saveToIndexedDB() {
+      const tableBody = document.getElementById('tableBody');
+      const data = Array.from(tableBody.rows).map(row => ({
+        className: row.className,
+        cells: Array.from(row.cells).map(cell => cell.innerText)
+      }));
+      localStorage.setItem('excelTableData', JSON.stringify(data));
+    }
+
+    function loadFromIndexedDB() {
+      const data = JSON.parse(localStorage.getItem('excelTableData') || '[]');
+      const tableBody = document.getElementById('tableBody');
+      tableBody.innerHTML = '';
+      data.forEach(rowData => {
+        const row = document.createElement('tr');
+        row.className = rowData.className;
+        rowData.cells.forEach((text, i) => {
+          const cell = document.createElement('td');
+          if (row.classList.contains('summary-row') || row.classList.contains('grand-total-row')) {
+            cell.className = row.classList.contains('summary-row') ? 'summary-cell' : 'grand-total-cell';
+            if (i === 0) cell.contentEditable = true;
+            cell.innerText = text;
+          } else {
+            if (i === 18) cell.classList.add('minutes');
+            else if (i === 19) cell.classList.add('minutes-allowance');
+            else if (i === 20) cell.classList.add('performance');
+            else if (i === 21) cell.classList.add('potential-output');
+            else cell.contentEditable = true;
+            cell.innerText = text;
+          }
+          row.appendChild(cell);
+        });
+        tableBody.appendChild(row);
+      });
+      calculateAll();
+    }
+
+
+  document.addEventListener('keydown', function (e) {
+    const active = document.activeElement;
+    if (!active || active.tagName !== 'TD') return;
+
+    const currentCell = active;
+    const currentRow = currentCell.parentElement;
+    const rowIndex = currentRow.rowIndex - 2; // because of two header rows
+    const colIndex = [...currentRow.cells].indexOf(currentCell);
+    const tableBody = document.getElementById('tableBody');
+    const rows = tableBody.rows;
+
+    let targetCell;
+
+    if (e.key === 'ArrowDown') {
+      if (rowIndex + 1 < rows.length) {
+        targetCell = rows[rowIndex + 1].cells[colIndex];
+      } else {
+        addRow();
+        setTimeout(() => {
+          const newRow = tableBody.rows[rowIndex + 1];
+          newRow.cells[colIndex].focus();
+        }, 10);
+        return;
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (rowIndex > 0) targetCell = rows[rowIndex - 1].cells[colIndex];
+    } else if (e.key === 'ArrowRight' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      if (colIndex + 1 < currentRow.cells.length) {
+        targetCell = currentRow.cells[colIndex + 1];
+      } else if (rowIndex + 1 < rows.length) {
+        targetCell = rows[rowIndex + 1].cells[0];
+      }
+    } else if (e.key === 'ArrowLeft' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      if (colIndex > 0) {
+        targetCell = currentRow.cells[colIndex - 1];
+      } else if (rowIndex > 0) {
+        targetCell = rows[rowIndex - 1].cells[rows[rowIndex - 1].cells.length - 1];
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (rowIndex + 1 < rows.length) {
+        targetCell = rows[rowIndex + 1].cells[colIndex];
+      } else {
+        addRow();
+        setTimeout(() => {
+          const newRow = tableBody.rows[rowIndex + 1];
+          newRow.cells[colIndex].focus();
+        }, 10);
+        return;
+      }
+    } else if (e.key === 'Escape') {
+      const selectedRow = document.querySelector('#tableBody .selected');
+      if (selectedRow) selectedRow.classList.remove('selected');
+    }
+
+    if (targetCell && targetCell.isContentEditable) {
+      targetCell.focus();
+      e.preventDefault();
+    }
+  });
+
+    document.getElementById('tableBody').addEventListener('input', function (e) {
+      const td = e.target;
+      const row = td.parentElement;
+      const rowIndex = [...row.parentElement.children].indexOf(row);
+      const colIndex = [...row.cells].indexOf(td);
+      logAction(`EDIT_CELL ${rowIndex} ${colIndex} "${td.innerText.replace(/"/g, '\\"')}"`);
+      calculateAll();
+    });
+    document.getElementById('tableBody').addEventListener('click', function (e) {
+      const rows = Array.from(this.rows);
+      rows.forEach(r => r.classList.remove('selected'));
+      if (e.target.tagName === 'TD') e.target.parentElement.classList.add('selected');
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Delete') {
+        const selectedRow = document.querySelector('#tableBody .selected');
+        if (selectedRow) {
+          const index = [...tableBody.rows].indexOf(selectedRow);
+        logAction(`DELETE_ROW ${index}`);
+        selectedRow.remove();
+          calculateAll();
+        }
+      }
+    });
+
+let draggingGroup = [];
+let draggingOperation = '';
+let dragBadge = null;
+let autoScrollInterval = null;
+
+const scrollSpeed = 10; // pixels per frame
+const scrollZoneHeight = 80; // px from top or bottom to start scrolling
+
+new Sortable(document.getElementById('tableBody'), {
+  animation: 150,
+  ghostClass: 'sortable-ghost',
+  
+  onStart: (evt) => {
+    const draggedRow = evt.item;
+    const operation = draggedRow.cells[2]?.innerText.trim();
+    draggingOperation = operation;
+    
+    const allRows = Array.from(document.getElementById('tableBody').rows);
+    draggingGroup = allRows.filter(row => row.cells[2]?.innerText.trim() === operation);
+    
+    // Highlight
+    draggingGroup.forEach(row => row.classList.add('dragging-group'));
+    
+    // Floating badge
+    dragBadge = document.createElement('div');
+    dragBadge.innerText = `Dragging ${draggingGroup.length} rows...`;
+    Object.assign(dragBadge.style, {
+      position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+      padding: '8px 16px', background: '#007bff', color: 'white',
+      borderRadius: '8px', zIndex: '10000', boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+    });
+    document.body.appendChild(dragBadge);
+
+    // Start listening for mouse move
+    document.addEventListener('mousemove', autoScrollHandler);
+  },
+
+  onMove: (evt) => {
+    const targetRow = evt.related;
+    if (!targetRow) return true;
+    
+    const targetOperation = targetRow.cells[2]?.innerText.trim();
+    if (targetOperation && targetOperation !== draggingOperation) {
+      return false;
+    }
+    return true;
+  },
+
+  onEnd: (evt) => {
+    const tableBody = document.getElementById('tableBody');
+    const allRows = Array.from(tableBody.rows);
+    let toIndex = evt.newIndex;
+
+    // Adjust index if inside same group
+    while (toIndex < allRows.length && allRows[toIndex].cells[2]?.innerText.trim() === draggingOperation) {
+      toIndex++;
+    }
+
+    draggingGroup.forEach(row => tableBody.removeChild(row));
+
+    const referenceRow = tableBody.rows[toIndex];
+    draggingGroup.reverse().forEach(row => {
+      if (referenceRow) {
+        tableBody.insertBefore(row, referenceRow);
+      } else {
+        tableBody.appendChild(row);
+      }
+    });
+
+    // Clean up
+    draggingGroup.forEach(row => row.classList.remove('dragging-group'));
+    if (dragBadge) {
+      document.body.removeChild(dragBadge);
+      dragBadge = null;
+    }
+    
+    draggingGroup = [];
+    draggingOperation = '';
+
+    // Stop auto-scroll
+    document.removeEventListener('mousemove', autoScrollHandler);
+    clearInterval(autoScrollInterval);
+    autoScrollInterval = null;
+
+    saveToIndexedDB();
+    calculateAll();
+  }
+});
+
+function autoScrollHandler(e) {
+  const container = document.querySelector('div[style*="overflow-x: auto"]');
+  const rect = container.getBoundingClientRect();
+  const mouseY = e.clientY;
+
+  clearInterval(autoScrollInterval);
+
+  if (mouseY < rect.top + scrollZoneHeight) {
+    // Scroll up
+    autoScrollInterval = setInterval(() => {
+      container.scrollTop -= scrollSpeed;
+    }, 16); // roughly 60fps
+  } else if (mouseY > rect.bottom - scrollZoneHeight) {
+    // Scroll down
+    autoScrollInterval = setInterval(() => {
+      container.scrollTop += scrollSpeed;
+    }, 16);
+  }
+}
+
+
+    addRow();
+
+
+function exportLog() {
+  const blob = new Blob([actionLog.join('\n')], { type: 'text/plain' });
+  saveAs(blob, 'user_actions_log.txt');
+}
+
+function exportToExcel(exportInfo = {}) {
+  const wb = XLSX.utils.book_new();
+  const table = document.getElementById('excelTable');
+  const rawSheet = XLSX.utils.table_to_sheet(table, { raw: true });
+
+  // Insert form data
+  const ws_data = [
+    ['Date:', exportInfo.Date || ''],
+    ['Line:', exportInfo.Line || ''],
+    ['Foreman:', exportInfo.Foreman || ''],
+    ['Target:', ''], // Target left empty (user will fill inside table)
+    ['Smv:', exportInfo.Smv || ''],
+    ['MP:', exportInfo.MP || ''],
+    ['Inspection:', exportInfo.Inspection || ''],
+    ['CPI:', exportInfo.CPI || ''],
+    [], // empty row before table
+  ];
+
+  // Push table
+  const tableData = XLSX.utils.sheet_to_json(rawSheet, { header: 1, blankrows: false });
+  ws_data.push(...tableData);
+
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Column widths (same)
+  ws['!cols'] = [
+    { wpx: 40 }, { wpx: 100 }, { wpx: 120 }, { wpx: 140 }, { wpx: 60 },
+    { wpx: 100 }, { wpx: 100 }, { wpx: 100 }, ...Array(10).fill({ wpx: 40 }),
+    { wpx: 70 }, { wpx: 100 }, { wpx: 90 }, { wpx: 100 }, { wpx: 80 }, { wpx: 60 }
+  ];
+
+  // Merged headers (shifted +9 rows)
+  ws['!merges'] = [
+    { s: { r:9, c:0 }, e: { r:10, c:0 } }, 
+    { s: { r:9, c:1 }, e: { r:10, c:1 } }, 
+    { s: { r:9, c:2 }, e: { r:10, c:2 } }, 
+    { s: { r:9, c:3 }, e: { r:10, c:3 } }, 
+    { s: { r:9, c:4 }, e: { r:10, c:4 } }, 
+    { s: { r:9, c:5 }, e: { r:10, c:5 } }, 
+    { s: { r:9, c:6 }, e: { r:10, c:6 } }, 
+    { s: { r:9, c:7 }, e: { r:10, c:7 } }, 
+    { s: { r:9, c:8 }, e: { r:9, c:17 } }, 
+    { s: { r:9, c:18 }, e: { r:9, c:23 } },
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'CAPACITY');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: "application/octet-stream" }), 'exported_table.xlsx');
+}
+
+function exportToSkillMatrix() {
+  const tableBody = document.getElementById('tableBody');
+  const rows = Array.from(tableBody.rows).filter(row => 
+    !row.classList.contains('summary-row') && !row.classList.contains('grand-total-row')
+  );
+
+  // 1. Get all unique operators (NAME) and operations (OPERATION)
+  const operators = [...new Set(rows.map(r => r.cells[1]?.innerText.trim()).filter(name => name))];
+  const operations = [...new Set(rows.map(r => r.cells[2]?.innerText.trim()).filter(op => op))];
+
+  // 2. Create header row
+  const header = ["Operator \\ Operation", ...operations];
+
+  // 3. Create matrix body
+  const matrix = operators.map(operator => {
+    const row = [operator];
+    for (let operation of operations) {
+      const matchingRow = rows.find(r => 
+        r.cells[1]?.innerText.trim() === operator && 
+        r.cells[2]?.innerText.trim() === operation
+      );
+      if (matchingRow) {
+        let performance = matchingRow.cells[20]?.innerText.trim(); // Read performance
+        if (performance.endsWith('%')) {
+          let decimal = parseFloat(performance.replace('%', '')) / 100;
+          row.push(isNaN(decimal) ? "" : decimal.toFixed(5)); // format to 5 decimals
+        } else {
+          row.push("");
+        }
+      } else {
+        row.push("");
+      }
+    }
+    return row;
+  });
+
+  // 4. Create worksheet
+  const ws_data = [header, ...matrix];
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Optional: adjust column widths
+  ws['!cols'] = [{ wpx: 150 }, ...operations.map(() => ({ wpx: 100 }))];
+
+  // 5. Create workbook and download
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Skill Matrix');
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: "application/octet-stream" }), 'skill_matrix.xlsx');
+}
+
+// Popup open/close
+function openPopup() {
+  const targetLineValue = document.getElementById('targetLineField').value;
+  document.getElementById('targetLineInput').value = targetLineValue;
+  document.getElementById('popupForm').style.display = 'flex';
+}
+
+function closePopup() {
+  document.getElementById('popupForm').style.display = 'none';
+}
+
+// Hook form submit
+document.getElementById('exportForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const exportInfo = {};
+  formData.forEach((value, key) => exportInfo[key] = value);
+  closePopup();
+  exportToExcel(exportInfo); // pass info to export
+});
+
+
+  </script>
+</body>
+</html>
