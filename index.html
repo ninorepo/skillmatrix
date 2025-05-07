@@ -1,8 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+let isSelecting = false;
+let startCell = null;
+
+document.getElementById('tableBody').addEventListener('mousedown', function(e) {
+  if (e.target.tagName === 'TD' && e.target.isContentEditable) {
+    isSelecting = true;
+    clearCellSelection();
+    startCell = e.target;
+    e.target.classList.add('selected-cell');
+  }
+});
+
+document.addEventListener('mouseup', function() {
+  isSelecting = false;
+  startCell = null;
+});
+
+document.getElementById('tableBody').addEventListener('mouseover', function(e) {
+  if (isSelecting && e.target.tagName === 'TD' && e.target.isContentEditable) {
+    clearCellSelection();
+    const endCell = e.target;
+    selectCellBlock(startCell, endCell);
+  }
+});
+
+function selectCellBlock(cell1, cell2) {
+  const rows = [...document.getElementById('tableBody').rows];
+  const r1 = cell1.parentElement.rowIndex;
+  const r2 = cell2.parentElement.rowIndex;
+  const c1 = [...cell1.parentElement.cells].indexOf(cell1);
+  const c2 = [...cell2.parentElement.cells].indexOf(cell2);
+
+  const [minRow, maxRow] = [Math.min(r1, r2), Math.max(r1, r2)];
+  const [minCol, maxCol] = [Math.min(c1, c2), Math.max(c1, c2)];
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const cell = rows[r - 2]?.cells[c];
+      if (cell && cell.isContentEditable) {
+        cell.classList.add('selected-cell');
+      }
+    }
+  }
+}
+
+function clearCellSelection() {
+  document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Delete') {
+    const selected = document.querySelectorAll('.selected-cell');
+    selected.forEach(cell => cell.innerText = '');
+    calculateAll();
+    logAction(`CLEAR_SELECTED_CELLS ${selected.length} cells cleared`);
+  }
+});
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js">
+let isSelecting = false;
+let startCell = null;
+
+document.getElementById('tableBody').addEventListener('mousedown', function(e) {
+  if (e.target.tagName === 'TD' && e.target.isContentEditable) {
+    isSelecting = true;
+    clearCellSelection();
+    startCell = e.target;
+    e.target.classList.add('selected-cell');
+  }
+});
+
+document.addEventListener('mouseup', function() {
+  isSelecting = false;
+  startCell = null;
+});
+
+document.getElementById('tableBody').addEventListener('mouseover', function(e) {
+  if (isSelecting && e.target.tagName === 'TD' && e.target.isContentEditable) {
+    clearCellSelection();
+    const endCell = e.target;
+    selectCellBlock(startCell, endCell);
+  }
+});
+
+function selectCellBlock(cell1, cell2) {
+  const rows = [...document.getElementById('tableBody').rows];
+  const r1 = cell1.parentElement.rowIndex;
+  const r2 = cell2.parentElement.rowIndex;
+  const c1 = [...cell1.parentElement.cells].indexOf(cell1);
+  const c2 = [...cell2.parentElement.cells].indexOf(cell2);
+
+  const [minRow, maxRow] = [Math.min(r1, r2), Math.max(r1, r2)];
+  const [minCol, maxCol] = [Math.min(c1, c2), Math.max(c1, c2)];
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const cell = rows[r - 2]?.cells[c];
+      if (cell && cell.isContentEditable) {
+        cell.classList.add('selected-cell');
+      }
+    }
+  }
+}
+
+function clearCellSelection() {
+  document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Delete') {
+    const selected = document.querySelectorAll('.selected-cell');
+    selected.forEach(cell => cell.innerText = '');
+    calculateAll();
+    logAction(`CLEAR_SELECTED_CELLS ${selected.length} cells cleared`);
+  }
+});
+
+</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Excel-like Table</title>
@@ -51,8 +169,72 @@
   	transition: background-color 0.2s ease;
   	}
 
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  
+td.selected-cell {
+  background-color: #b3d9ff !important;
+}
+
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js">
+let isSelecting = false;
+let startCell = null;
+
+document.getElementById('tableBody').addEventListener('mousedown', function(e) {
+  if (e.target.tagName === 'TD' && e.target.isContentEditable) {
+    isSelecting = true;
+    clearCellSelection();
+    startCell = e.target;
+    e.target.classList.add('selected-cell');
+  }
+});
+
+document.addEventListener('mouseup', function() {
+  isSelecting = false;
+  startCell = null;
+});
+
+document.getElementById('tableBody').addEventListener('mouseover', function(e) {
+  if (isSelecting && e.target.tagName === 'TD' && e.target.isContentEditable) {
+    clearCellSelection();
+    const endCell = e.target;
+    selectCellBlock(startCell, endCell);
+  }
+});
+
+function selectCellBlock(cell1, cell2) {
+  const rows = [...document.getElementById('tableBody').rows];
+  const r1 = cell1.parentElement.rowIndex;
+  const r2 = cell2.parentElement.rowIndex;
+  const c1 = [...cell1.parentElement.cells].indexOf(cell1);
+  const c2 = [...cell2.parentElement.cells].indexOf(cell2);
+
+  const [minRow, maxRow] = [Math.min(r1, r2), Math.max(r1, r2)];
+  const [minCol, maxCol] = [Math.min(c1, c2), Math.max(c1, c2)];
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const cell = rows[r - 2]?.cells[c];
+      if (cell && cell.isContentEditable) {
+        cell.classList.add('selected-cell');
+      }
+    }
+  }
+}
+
+function clearCellSelection() {
+  document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Delete') {
+    const selected = document.querySelectorAll('.selected-cell');
+    selected.forEach(cell => cell.innerText = '');
+    calculateAll();
+    logAction(`CLEAR_SELECTED_CELLS ${selected.length} cells cleared`);
+  }
+});
+
+</script>
 </head>
 <body>
   <div class="controls">
@@ -632,7 +814,6 @@ function autoScrollHandler(e) {
   }
 }
 
-
     addRow();
 
 
@@ -814,7 +995,102 @@ function showNotification(message) {
   setTimeout(() => { notif.style.opacity = '0'; }, 2000);
   setTimeout(() => { notif.remove(); }, 2500);
 }
+document.addEventListener('paste', function (e) {
+  const clipboardData = e.clipboardData || window.clipboardData;
+  const pastedData = clipboardData.getData('text');
 
-  </script>
+  const active = document.activeElement;
+  if (!active || active.tagName !== 'TD') return;
+
+  e.preventDefault(); // ← Prevent the default paste into a single cell
+
+  const startCell = active;
+  const startRow = startCell.parentElement;
+  const rowIndex = [...startRow.parentElement.children].indexOf(startRow);
+  const colIndex = [...startRow.cells].indexOf(startCell);
+
+  const rows = pastedData.trim().split('\n').map(row => row.split('\t'));
+
+  const tableBody = document.getElementById('tableBody');
+
+  rows.forEach((rowData, r) => {
+    let row = tableBody.rows[rowIndex + r];
+    if (!row) {
+      addRow();
+      row = tableBody.rows[rowIndex + r];
+    }
+    rowData.forEach((cellData, c) => {
+      const targetCell = row.cells[colIndex + c];
+      if (targetCell && targetCell.isContentEditable) {
+        targetCell.innerText = cellData.trim();
+      }
+    });
+  });
+
+  calculateAll();
+});
+
+
+
+  
+let isSelecting = false;
+let startCell = null;
+
+document.getElementById('tableBody').addEventListener('mousedown', function(e) {
+  if (e.target.tagName === 'TD' && e.target.isContentEditable) {
+    isSelecting = true;
+    clearCellSelection();
+    startCell = e.target;
+    e.target.classList.add('selected-cell');
+  }
+});
+
+document.addEventListener('mouseup', function() {
+  isSelecting = false;
+  startCell = null;
+});
+
+document.getElementById('tableBody').addEventListener('mouseover', function(e) {
+  if (isSelecting && e.target.tagName === 'TD' && e.target.isContentEditable) {
+    clearCellSelection();
+    const endCell = e.target;
+    selectCellBlock(startCell, endCell);
+  }
+});
+
+function selectCellBlock(cell1, cell2) {
+  const rows = [...document.getElementById('tableBody').rows];
+  const r1 = cell1.parentElement.rowIndex;
+  const r2 = cell2.parentElement.rowIndex;
+  const c1 = [...cell1.parentElement.cells].indexOf(cell1);
+  const c2 = [...cell2.parentElement.cells].indexOf(cell2);
+
+  const [minRow, maxRow] = [Math.min(r1, r2), Math.max(r1, r2)];
+  const [minCol, maxCol] = [Math.min(c1, c2), Math.max(c1, c2)];
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const cell = rows[r - 2]?.cells[c];
+      if (cell && cell.isContentEditable) {
+        cell.classList.add('selected-cell');
+      }
+    }
+  }
+}
+
+function clearCellSelection() {
+  document.querySelectorAll('.selected-cell').forEach(cell => cell.classList.remove('selected-cell'));
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Delete') {
+    const selected = document.querySelectorAll('.selected-cell');
+    selected.forEach(cell => cell.innerText = '');
+    calculateAll();
+    logAction(`CLEAR_SELECTED_CELLS ${selected.length} cells cleared`);
+  }
+});
+
+</script>
 </body>
 </html>
