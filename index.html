@@ -366,7 +366,7 @@ function calculateProposeMPAndDiff() {
       });
 
       if (sumPotentialOutput > 0 && !isNaN(targetLineValue)) {
-        const proposeMP = targetLineValue / sumPotentialOutput;
+        const proposeMP = targetLineValue / sumPotentialOutput * sumActualMP;
 
         proposeMPCell.innerText = proposeMP.toFixed(2);
         diffCell.innerText = (sumActualMP - proposeMP).toFixed(2);
