@@ -241,6 +241,7 @@ document.addEventListener('keydown', function(e) {
     <button onclick="addRow()">Add Row</button>
     <button onclick="deleteLastRow()">Delete Last Row</button>
     <button onclick="deleteSelectedRow()">Delete Selected Row</button>
+    <button onclick="insertRowAfterSelected()">Insert Row After</button>
     <button onclick="saveToIndexedDB()">Save Data</button>
     <button onclick="loadFromIndexedDB()">Load Data</button>
     <button onclick="addSummaryRowBelow()">Add Summary Row</button>
@@ -705,114 +706,6 @@ function saveToIndexedDB() {
       }
     });
 
-let draggingGroup = [];
-let draggingOperation = '';
-let dragBadge = null;
-let autoScrollInterval = null;
-
-const scrollSpeed = 10; // pixels per frame
-const scrollZoneHeight = 80; // px from top or bottom to start scrolling
-
-new Sortable(document.getElementById('tableBody'), {
-  animation: 150,
-  ghostClass: 'sortable-ghost',
-  
-  onStart: (evt) => {
-    const draggedRow = evt.item;
-    const operation = draggedRow.cells[2]?.innerText.trim();
-    draggingOperation = operation;
-    
-    const allRows = Array.from(document.getElementById('tableBody').rows);
-    draggingGroup = allRows.filter(row => row.cells[2]?.innerText.trim() === operation);
-    
-    // Highlight
-    draggingGroup.forEach(row => row.classList.add('dragging-group'));
-    
-    // Floating badge
-    dragBadge = document.createElement('div');
-    dragBadge.innerText = `Dragging ${draggingGroup.length} rows...`;
-    Object.assign(dragBadge.style, {
-      position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-      padding: '8px 16px', background: '#007bff', color: 'white',
-      borderRadius: '8px', zIndex: '10000', boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-    });
-    document.body.appendChild(dragBadge);
-
-    // Start listening for mouse move
-    document.addEventListener('mousemove', autoScrollHandler);
-  },
-
-  onMove: (evt) => {
-    const targetRow = evt.related;
-    if (!targetRow) return true;
-    
-    const targetOperation = targetRow.cells[2]?.innerText.trim();
-    if (targetOperation && targetOperation !== draggingOperation) {
-      return false;
-    }
-    return true;
-  },
-
-  onEnd: (evt) => {
-    const tableBody = document.getElementById('tableBody');
-    const allRows = Array.from(tableBody.rows);
-    let toIndex = evt.newIndex;
-
-    // Adjust index if inside same group
-    while (toIndex < allRows.length && allRows[toIndex].cells[2]?.innerText.trim() === draggingOperation) {
-      toIndex++;
-    }
-
-    draggingGroup.forEach(row => tableBody.removeChild(row));
-
-    const referenceRow = tableBody.rows[toIndex];
-    draggingGroup.reverse().forEach(row => {
-      if (referenceRow) {
-        tableBody.insertBefore(row, referenceRow);
-      } else {
-        tableBody.appendChild(row);
-      }
-    });
-
-    // Clean up
-    draggingGroup.forEach(row => row.classList.remove('dragging-group'));
-    if (dragBadge) {
-      document.body.removeChild(dragBadge);
-      dragBadge = null;
-    }
-    
-    draggingGroup = [];
-    draggingOperation = '';
-
-    // Stop auto-scroll
-    document.removeEventListener('mousemove', autoScrollHandler);
-    clearInterval(autoScrollInterval);
-    autoScrollInterval = null;
-
-    saveToIndexedDB();
-    calculateAll();
-  }
-});
-
-function autoScrollHandler(e) {
-  const container = document.querySelector('div[style*="overflow-x: auto"]');
-  const rect = container.getBoundingClientRect();
-  const mouseY = e.clientY;
-
-  clearInterval(autoScrollInterval);
-
-  if (mouseY < rect.top + scrollZoneHeight) {
-    // Scroll up
-    autoScrollInterval = setInterval(() => {
-      container.scrollTop -= scrollSpeed;
-    }, 16); // roughly 60fps
-  } else if (mouseY > rect.bottom - scrollZoneHeight) {
-    // Scroll down
-    autoScrollInterval = setInterval(() => {
-      container.scrollTop += scrollSpeed;
-    }, 16);
-  }
-}
 
     addRow();
 
@@ -1091,6 +984,16 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
+    function insertRowAfterSelected() {
+      const tableBody = document.getElementById('tableBody');
+      const selectedRow = tableBody.querySelector('.selected');
+      if (selectedRow) {
+        const index = Array.from(tableBody.rows).indexOf(selectedRow) + 1;
+        addRow(index);
+      } else {
+        alert("Please select a row first.");
+      }
+    }
 </script>
 </body>
 </html>
